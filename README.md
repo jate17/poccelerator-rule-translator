@@ -6,3 +6,14 @@ Direct Link: (POCcelerator Rule Translator)[https://jate17.github.io/poccelerato
 
 POCcelerator uses a proprietary DSL inside .ini files to define how incoming ASTM E1394 messages are transformed before reaching the middleware. These rules are compact and undocumented — reading them without context is non-trivial.
 This tool lets you paste a rule block and a raw ASTM message and instantly see what each rule does, which fields get modified, and what the output message looks like after transformation.
+
+## Compatibility
+Tested with POCcelerator (Siemens Healthineers) rule files 
+from instruments including Horiba, AFIAS, and Stago coagulometers.
+
+
+
+## Keywords
+POCcelerator · RapidComm · Siemens Healthineers · ASTM E1394 · 
+POCT middleware · HL7 · lab middleware · Q_Input.ini · P_Input.ini · 
+ASTM mapping rules · point-of-care testing

@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>POCcelerator Rule Translator</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --bg2: #161b27;
+    --bg3: #1e2535;
+    --bg4: #252d3e;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #e8eaf2;
+    --text2: #9ba3b8;
+    --text3: #636b82;
+    --accent: #4f8ef7;
+    --accent2: #3a6fd4;
+    --green: #3ecf8e;
+    --amber: #f5a623;
+    --red: #e05252;
+    --purple: #a78bfa;
+    --teal: #2dd4bf;
+    --mono: 'JetBrains Mono', 'Fira Mono', 'Cascadia Code', monospace;
+    --sans: system-ui, -apple-system, sans-serif;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; line-height: 1.6; min-height: 100vh; }
+
+  header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 0 24px; height: 52px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 100; }
+
+  .logo { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
+  .logo-icon { width: 28px; height: 28px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; font-family: var(--mono); }
+  .logo-sub { font-size: 12px; color: var(--text3); font-weight: 400; margin-left: 2px; }
+
+  .main { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr; height: calc(100vh - 52px); gap: 0; }
+
+  .panel { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  .panel:last-child { border-right: none; }
+  .panel-bottom { grid-column: 1 / -1; border-bottom: none; }
+
+  .panel-header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+
+  .panel-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); display: flex; align-items: center; gap: 6px; }
+  .panel-title .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .dot-blue { background: var(--accent); }
+  .dot-green { background: var(--green); }
+  .dot-amber { background: var(--amber); }
+
+  .panel-body { flex: 1; overflow: auto; padding: 0; }
+
+  textarea { width: 100%; height: 100%; background: transparent; border: none; color: var(--text); font-family: var(--mono); font-size: 12.5px; line-height: 1.7; padding: 16px; resize: none; outline: none; }
+  textarea::placeholder { color: var(--text3); }
+
+  .btn { background: var(--accent); color: #fff; border: none; border-radius: var(--radius); padding: 8px 18px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.15s, transform 0.1s; font-family: var(--sans); }
+  .btn:hover { background: var(--accent2); }
+  .btn:active { transform: scale(0.97); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; background: var(--bg4); color: var(--text2); border: 1px solid var(--border); }
+  .btn-sm:hover { background: var(--bg3); color: var(--text); }
+
+  .output-area { padding: 16px; font-family: var(--mono); font-size: 12px; line-height: 1.7; overflow: auto; height: 100%; }
+
+  .analysis-section { margin-bottom: 20px; }
+  .section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+
+  .rule-card { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 8px; border-left: 3px solid transparent; }
+  .rule-card.record-H { border-left-color: var(--purple); }
+  .rule-card.record-C { border-left-color: var(--red); }
+  .rule-card.record-O { border-left-color: var(--amber); }
+  .rule-card.record-P { border-left-color: var(--green); }
+  .rule-card.record-R { border-left-color: var(--accent); }
+  .rule-card.record-L { border-left-color: var(--teal); }
+
+  .rule-raw { font-family: var(--mono); font-size: 11px; color: var(--text3); margin-bottom: 5px; }
+  .rule-desc { font-family: var(--sans); font-size: 13px; color: var(--text); line-height: 1.5; }
+  .rule-effect { margin-top: 5px; font-size: 11px; color: var(--text2); display: flex; align-items: center; gap: 4px; }
+
+  .badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .badge-H { background: rgba(167,139,250,0.15); color: var(--purple); }
+  .badge-C { background: rgba(224,82,82,0.15); color: var(--red); }
+  .badge-O { background: rgba(245,166,35,0.15); color: var(--amber); }
+  .badge-P { background: rgba(62,207,142,0.15); color: var(--green); }
+  .badge-R { background: rgba(79,142,247,0.15); color: var(--accent); }
+  .badge-L { background: rgba(45,212,191,0.15); color: var(--teal); }
+
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 8px; color: var(--text3); font-family: var(--sans); font-size: 13px; text-align: center; padding: 24px; }
+  .empty-icon { font-size: 32px; opacity: 0.3; }
+
+  .error-msg { background: rgba(224,82,82,0.1); border: 1px solid rgba(224,82,82,0.3); border-radius: var(--radius); padding: 10px 14px; color: var(--red); font-family: var(--sans); font-size: 13px; margin-bottom: 12px; }
+
+  .stats-bar { display: flex; gap: 16px; align-items: center; }
+  .stat { font-size: 11px; color: var(--text3); display: flex; align-items: center; gap: 4px; }
+  .stat-num { color: var(--text2); font-weight: 600; }
+
+  .tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 16px; background: var(--bg2); flex-shrink: 0; }
+  .tab { padding: 8px 14px; font-size: 12px; font-weight: 500; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.1s; background: none; border-top: none; border-left: none; border-right: none; font-family: var(--sans); }
+  .tab:hover { color: var(--text2); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-content { display: none; height: 100%; overflow: auto; }
+  .tab-content.active { display: block; }
+
+  .transform-line { padding: 4px 12px; font-family: var(--mono); font-size: 12px; border-bottom: 1px solid var(--border); }
+  .transform-line:last-child { border-bottom: none; }
+  .transform-orig { color: var(--text3); font-size: 11px; margin-bottom: 2px; }
+  .transform-new { color: var(--text); }
+  .transform-new.changed { color: var(--green); }
+  .transform-new.removed { color: var(--red); opacity: 0.5; text-decoration: line-through; }
+
+  .change-note { font-family: var(--sans); font-size: 11px; color: var(--text3); margin-top: 2px; display: flex; align-items: center; gap: 4px; }
+  .change-note::before { content: '↳'; color: var(--green); }
+
+  code { font-family: var(--mono); background: var(--bg4); border-radius: 3px; padding: 1px 5px; font-size: 11px; color: var(--teal); }
+
+  .summary-card { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 10px; }
+  .summary-title { font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 4px; }
+  .summary-body { font-size: 12px; color: var(--text); line-height: 1.6; font-family: var(--sans); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">P</div>
+    POCcelerator Rule Translator
+    <span class="logo-sub">ASTM mapping engine debugger</span>
+  </div>
+</header>
+
+<div class="main">
+
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title"><span class="dot dot-blue"></span>Rules (.ini)</span>
+      <button class="btn-sm btn" onclick="clearRules()">Clear</button>
+    </div>
+    <div class="panel-body">
+      <textarea id="rulesInput" placeholder="; Paste your Q_Input.ini or P_Input.ini rules here
+; Example:
+[C]
+4.2.1.=Group,4,1,,IfNotStr,IC,alarm,NoResult,ClearLine
+
+[P]
+6.1.2=Group,6,1,,IfNotStr,IC,1,NoResult,String,Level 1
+
+[R]
+11.1=Group,11,1,,IfLen,>,0,NoResult,String,AQC"></textarea>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title"><span class="dot dot-amber"></span>ASTM Message</span>
+      <button class="btn-sm btn" onclick="clearAstm()">Clear</button>
+    </div>
+    <div class="panel-body">
+      <textarea id="astmInput" placeholder="Paste your ASTM message here
+Example:
+H|\^&|||DEVICE^^ID^^^|||||P|1
+P|1||MC439-2||Level 2
+O|1|||^^^CRP^|||||||||||BLD||||||||^||F
+R|1|^^^WBC^804-5^^^|7.7|10e3uL|^|||F^^U||AQC||20260608082528
+L|1|N"></textarea>
+    </div>
+  </div>
+
+  <div class="panel panel-bottom">
+    <div class="panel-header">
+      <span class="panel-title"><span class="dot dot-green"></span>Analysis &amp; Transformation</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="stats-bar" id="statsBar"></div>
+        <button class="btn" onclick="run()">&#9654; Run</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('rules')">Rule Explanation</button>
+      <button class="tab" onclick="switchTab('transform')">ASTM Transformation</button>
+      <button class="tab" onclick="switchTab('summary')">Summary</button>
+    </div>
+    <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;">
+      <div id="tab-rules" class="tab-content active">
+        <div class="output-area" id="rulesOutput">
+          <div class="empty-state"><div class="empty-icon">&#9881;</div><div>Paste rules and an ASTM message, then click Run</div></div>
+        </div>
+      </div>
+      <div id="tab-transform" class="tab-content">
+        <div class="output-area" id="transformOutput">
+          <div class="empty-state"><div class="empty-icon">&#8644;</div><div>Run to see the ASTM transformation</div></div>
+        </div>
+      </div>
+      <div id="tab-summary" class="tab-content">
+        <div class="output-area" id="summaryOutput">
+          <div class="empty-state"><div class="empty-icon">&#128203;</div><div>Run to see the transformation summary</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const names = ['rules','transform','summary'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.tab-content').forEach(c => {
+    c.classList.toggle('active', c.id === 'tab-' + name);
+  });
+}
+
+function clearRules() { document.getElementById('rulesInput').value = ''; }
+function clearAstm()  { document.getElementById('astmInput').value = ''; }
+
+function parseAstmLine(line) { return line.split('|'); }
+
+function getField(fields, idx, repeat, component) {
+  if (idx < 1 || idx >= fields.length) return '';
+  let val = fields[idx] || '';
+  if (repeat > 1) { val = (val.split('~')[repeat - 1]) || ''; }
+  if (component > 0) { val = (val.split('^')[component - 1]) || ''; }
+  return val;
+}
+
+function parseRules(text) {
+  const lines = text.split('\n');
+  const sections = {};
+  let cur = null;
+  for (let line of lines) {
+    line = line.trim();
+    if (!line || line.startsWith(';') || line.startsWith('//')) continue;
+    if (line.startsWith('[') && line.endsWith(']')) {
+      cur = line.slice(1,-1).toUpperCase();
+      if (!sections[cur]) sections[cur] = [];
+      continue;
+    }
+    if (cur && line.includes('=')) {
+      const ei = line.indexOf('=');
+      sections[cur].push({ key: line.slice(0,ei).trim(), val: line.slice(ei+1).trim(), raw: line });
+    }
+  }
+  return sections;
+}
+
+function tokenize(val) {
+  const tokens = [];
+  let cur = '';
+  for (const ch of val) { if (ch === ',') { tokens.push(cur); cur = ''; } else cur += ch; }
+  tokens.push(cur);
+  return tokens;
+}
+
+function parseFieldAddress(key) {
+  const isParent = key.startsWith('P.');
+  const cleanKey = isParent ? key.slice(2) : key;
+  const parts = cleanKey.split('.');
+  return {
+    isParent,
+    field: parseInt(parts[0]) || 0,
+    repeat: parseInt(parts[1]) || 1,
+    ruleIdx: parseInt(parts[2]) || 1,
+    isDummy: ['dummy','value'].includes(key.toLowerCase()),
+    raw: key
+  };
+}
+
+function applyPipeline(tokens, fields, vars) {
+  let i = 0, cur = null;
+  while (i < tokens.length) {
+    const op = (tokens[i] || '').trim();
+    if (!op) { i++; continue; }
+    if (op === 'Group') {
+      const fi = parseInt(tokens[i+1])||0, rep = parseInt(tokens[i+2])||1, comp = parseInt(tokens[i+3])||0;
+      cur = getField(fields, fi, rep, comp); i += 4;
+    } else if (op === 'String') {
+      cur = tokens[i+1] || ''; i += 2;
+    } else if (op === 'Variable') {
+      cur = vars[(tokens[i+1]||'').toUpperCase()] || ''; i += 2;
+    } else if (op === 'SubString') {
+      const s = parseInt(tokens[i+1])||1, l = parseInt(tokens[i+2])||0;
+      cur = (cur||'').substr(s-1, l); i += 3;
+    } else if (op === 'SubStringRev') {
+      const s = parseInt(tokens[i+1])||1, l = parseInt(tokens[i+2])||1, str = cur||'';
+      cur = str.substr(Math.max(0, str.length - s - l + 1), l); i += 3;
+    } else if (op === 'IfNotStr') {
+      const ic = (tokens[i+1]||'').toUpperCase() === 'IC', cmp = tokens[i+2]||'';
+      const a = ic ? (cur||'').toLowerCase() : (cur||'');
+      const b = ic ? cmp.toLowerCase() : cmp;
+      if (a !== b) { i += 3; } else { return null; }
+    } else if (op === 'IfStr') {
+      const ic = (tokens[i+1]||'').toUpperCase() === 'IC', cmp = tokens[i+2]||'';
+      const a = ic ? (cur||'').toLowerCase() : (cur||'');
+      const b = ic ? cmp.toLowerCase() : cmp;
+      if (a === b) { i += 3; } else { return null; }
+    } else if (op === 'IfLen') {
+      const o2 = tokens[i+1]||'>', lv = parseInt(tokens[i+2])||0, al = (cur||'').length;
+      const pass = o2==='>'?al>lv : o2==='<'?al<lv : o2==='>='?al>=lv : o2==='<='?al<=lv : al===lv;
+      if (pass) { i += 3; } else { return null; }
+    } else if (op === 'NoResult') { return null;
+    } else if (op === 'ClearLine') { return '__CLEAR__';
+    } else if (op === 'OnlCode') { cur = '[OnlCode:' + (tokens[i+1]||'') + ']'; i += 4;
+    } else if (op === 'Formel')  { cur = '[Formula:'  + (tokens[i+1]||'') + ']'; i += 4;
+    } else { i++; }
+  }
+  return cur;
+}
+
+function explainRule(key, val, recType) {
+  const tokens = tokenize(val);
+  const addr = parseFieldAddress(key);
+  const ops = tokens.map(t => t.trim());
+
+  const has = op => ops.includes(op);
+
+  if (has('ClearLine')) {
+    let cond = '';
+    if (has('IfNotStr')) {
+      const ii = tokens.indexOf('IfNotStr');
+      cond = ` when field <code>${tokens[tokens.indexOf('Group')+1]}</code> contains <code>"${tokens[ii+2]||''}"</code>`;
+    }
+    if (has('IfLen')) {
+      const ii = tokens.indexOf('IfLen');
+      cond = ` when length of field <code>${tokens[tokens.indexOf('Group')+1]}</code> ${tokens[ii+1]} ${tokens[ii+2]}`;
+    }
+    return {
+      desc: `Removes the entire ${recType} record from the message${cond}`,
+      effect: '🗑 Record deleted'
+    };
+  }
+
+  if (addr.isDummy) {
+    let desc = `Temporary variable <code>${key}</code>`;
+    if (has('Group') && has('SubString')) {
+      const gi = tokens.indexOf('Group'), si = tokens.indexOf('SubString');
+      desc += ` — extracts ${tokens[si+2]} char(s) from field ${tokens[gi+1]} at position ${tokens[si+1]}`;
+    }
+    if (has('String')) { desc += ` → writes <code>"${tokens[tokens.indexOf('String')+1]}"</code>`; }
+    return { desc, effect: '📦 Internal variable / scratchpad' };
+  }
+
+  if (has('OnlCode')) {
+    const oi = tokens.indexOf('OnlCode');
+    return {
+      desc: `Field <code>${addr.field}</code> — lookup in file <code>${tokens[oi+1]}</code>, table <code>${tokens[oi+3]}</code>`,
+      effect: '🗺 External file mapping'
+    };
+  }
+
+  if (has('Formel')) {
+    const fi = tokens.indexOf('Formel');
+    return {
+      desc: `Field <code>${addr.field}</code> — computes formula from <code>${tokens[fi+1]}</code>, key <code>${tokens[fi+3]}</code>`,
+      effect: '🧮 Calculated via external formula'
+    };
+  }
+
+  let source = '';
+  if (has('Group')) {
+    const gi = tokens.indexOf('Group');
+    source = `field ${tokens[gi+1]}` + (tokens[gi+3] ? `, component ${tokens[gi+3]}` : '');
+  }
+  if (has('Variable')) { source = `variable <code>${tokens[tokens.indexOf('Variable')+1]}</code>`; }
+
+  let transform = '';
+  if (has('SubString')) {
+    const si = tokens.indexOf('SubString');
+    transform = `, extract ${tokens[si+2]} char(s) from position ${tokens[si+1]}`;
+  }
+  if (has('SubStringRev')) {
+    const si = tokens.indexOf('SubStringRev');
+    transform = `, extract last ${tokens[si+2]} char(s) (right offset ${tokens[si+1]})`;
+  }
+
+  let condition = '';
+  if (has('IfNotStr')) {
+    const ii = tokens.indexOf('IfNotStr');
+    condition = ` — only if value ≠ <code>"${tokens[ii+2]||''}"</code>`;
+  }
+  if (has('IfStr')) {
+    const ii = tokens.indexOf('IfStr');
+    condition = ` — only if value = <code>"${tokens[ii+2]||''}"</code>`;
+  }
+  if (has('IfLen')) {
+    const ii = tokens.indexOf('IfLen');
+    condition = ` — only if length ${tokens[ii+1]} ${tokens[ii+2]}`;
+  }
+
+  let output = '';
+  if (has('String')) {
+    output = `Write literal <code>"${tokens[tokens.indexOf('String')+1]}"</code>`;
+  } else if (source) {
+    output = `Copy from ${source}${transform}`;
+  }
+
+  const target = addr.isParent
+    ? `field ${addr.field} of the parent P record (from ${recType})`
+    : `field ${addr.field}`;
+
+  return {
+    desc: `${output}${condition} → ${target}`,
+    effect: addr.isParent ? '↑ Propagates to parent record' : '✏ Modifies field'
+  };
+}
+
+function run() {
+  const rulesText = document.getElementById('rulesInput').value.trim();
+  const astmText  = document.getElementById('astmInput').value.trim();
+
+  if (!rulesText) {
+    document.getElementById('rulesOutput').innerHTML = '<div class="error-msg">Paste rules in the left panel first.</div>';
+    return;
+  }
+
+  const sections = parseRules(rulesText);
+  const totalRules = Object.values(sections).reduce((a,b) => a + b.length, 0);
+
+  document.getElementById('statsBar').innerHTML =
+    Object.entries(sections).map(([k,v]) =>
+      `<div class="stat"><span class="badge badge-${k}">${k}</span><span class="stat-num">${v.length}</span></div>`
+    ).join('') + `<div class="stat">total <span class="stat-num">${totalRules}</span></div>`;
+
+  renderRuleExplanations(sections);
+
+  if (astmText) {
+    renderTransformation(sections, astmText);
+  } else {
+    document.getElementById('transformOutput').innerHTML = '<div class="empty-state"><div class="empty-icon">&#8644;</div><div>Paste an ASTM message to see the transformation</div></div>';
+    document.getElementById('summaryOutput').innerHTML   = '<div class="empty-state"><div class="empty-icon">&#128203;</div><div>No ASTM message provided</div></div>';
+  }
+}
+
+function renderRuleExplanations(sections) {
+  let html = '';
+  for (const [recType, rules] of Object.entries(sections)) {
+    if (!rules.length) continue;
+    html += `<div class="analysis-section">`;
+    html += `<div class="section-label"><span class="badge badge-${recType}">${recType}</span> record — ${rules.length} rule${rules.length>1?'s':''}</div>`;
+    for (const rule of rules) {
+      const { desc, effect } = explainRule(rule.key, rule.val, recType);
+      html += `<div class="rule-card record-${recType}">`;
+      html += `<div class="rule-raw">${esc(rule.raw)}</div>`;
+      html += `<div class="rule-desc">${desc}</div>`;
+      html += `<div class="rule-effect">${effect}</div>`;
+      html += `</div>`;
+    }
+    html += `</div>`;
+  }
+  document.getElementById('rulesOutput').innerHTML = html || '<div class="empty-state">No rules parsed.</div>';
+}
+
+function renderTransformation(sections, astmText) {
+  const lines = astmText.split('\n').filter(l => l.trim());
+  const vars = {};
+  const outputLines = [];
+  const changes = [];
+
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
+    const fields = parseAstmLine(line);
+    const recType = (fields[0]||'').toUpperCase();
+    const rules = sections[recType] || [];
+    const modified = [...fields];
+    let cleared = false;
+    const lineChanges = [];
+
+    for (const rule of rules) {
+      const tokens = tokenize(rule.val);
+      const addr = parseFieldAddress(rule.key);
+
+      if (addr.isDummy) {
+        const res = applyPipeline(tokens, modified, vars);
+        if (res !== null) vars[rule.key.toUpperCase()] = res;
+        continue;
+      }
+
+      const res = applyPipeline(tokens, modified, vars);
+
+      if (res === '__CLEAR__') { cleared = true; lineChanges.push({ type:'clear', rule:rule.raw }); break; }
+
+      if (res !== null) {
+        if (addr.isParent) {
+          lineChanges.push({ type:'parent_set', field:addr.field, value:res, rule:rule.raw });
+        } else {
+          const old = modified[addr.field] || '';
+          if (old !== res) { modified[addr.field] = res; lineChanges.push({ type:'field_set', field:addr.field, old, new:res, rule:rule.raw }); }
+        }
+      }
+    }
+
+    outputLines.push({ original:line, modified: cleared ? null : modified, changes:lineChanges, recType, cleared });
+    if (lineChanges.length) changes.push({ line:li+1, recType, changes:lineChanges });
+  }
+
+  renderTransformOutput(outputLines);
+  renderSummary(outputLines, changes);
+}
+
+function renderTransformOutput(outputLines) {
+  let html = '';
+  for (const ol of outputLines) {
+    html += `<div class="transform-line">`;
+    html += `<div class="transform-orig">${esc(ol.original)}</div>`;
+    if (ol.cleared) {
+      html += `<div class="transform-new removed">${esc(ol.original)}</div>`;
+      html += `<div class="change-note">record deleted — ${esc(ol.changes[0]?.rule||'')}</div>`;
+    } else if (ol.changes.length) {
+      html += `<div class="transform-new changed">${esc(ol.modified.join('|'))}</div>`;
+      for (const c of ol.changes) {
+        if (c.type === 'field_set')    html += `<div class="change-note">field ${c.field}: <code>${esc(c.old||'(empty)')}</code> → <code>${esc(c.new)}</code></div>`;
+        if (c.type === 'parent_set')   html += `<div class="change-note">propagated to P record, field ${c.field}: <code>${esc(c.value)}</code></div>`;
+      }
+    } else {
+      html += `<div class="transform-new">${esc(ol.original)}</div>`;
+    }
+    html += `</div>`;
+  }
+  document.getElementById('transformOutput').innerHTML = html || '<div class="empty-state">No output.</div>';
+}
+
+function renderSummary(outputLines, changes) {
+  const cleared   = outputLines.filter(l => l.cleared).length;
+  const modified  = outputLines.filter(l => !l.cleared && l.changes.length > 0).length;
+  const unchanged = outputLines.filter(l => !l.cleared && l.changes.length === 0).length;
+  const total     = outputLines.length;
+
+  let html = `<div class="summary-card"><div class="summary-title">Transformation statistics</div><div class="summary-body">`;
+  html += `Total lines: <b>${total}</b> &nbsp;|&nbsp; `;
+  html += `Modified: <span style="color:var(--green)">${modified}</span> &nbsp;|&nbsp; `;
+  html += `Deleted: <span style="color:var(--red)">${cleared}</span> &nbsp;|&nbsp; `;
+  html += `Unchanged: <span style="color:var(--text3)">${unchanged}</span>`;
+  html += `</div></div>`;
+
+  if (changes.length) {
+    html += `<div class="section-label" style="margin:12px 16px 8px">Change detail</div>`;
+    for (const ch of changes) {
+      html += `<div class="summary-card"><div class="summary-title"><span class="badge badge-${ch.recType}">${ch.recType}</span> line ${ch.line}</div><div class="summary-body">`;
+      for (const c of ch.changes) {
+        if (c.type === 'clear')       html += `🗑 Record deleted<br>`;
+        if (c.type === 'field_set')   html += `✏ Field ${c.field}: <code>${esc(c.old||'(empty)')}</code> → <code>${esc(c.new)}</code><br>`;
+        if (c.type === 'parent_set')  html += `↑ Propagated to P: field ${c.field} = <code>${esc(c.value)}</code><br>`;
+      }
+      html += `</div></div>`;
+    }
+  } else {
+    html += `<div class="summary-card"><div class="summary-body" style="color:var(--text3)">No changes were applied to the ASTM message.</div></div>`;
+  }
+
+  document.getElementById('summaryOutput').innerHTML = html;
+}
+
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') run(); });
+</script>
+</body>
+</html>
